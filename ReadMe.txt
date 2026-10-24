@@ -80,6 +80,34 @@ Lecturer: Duong Huu Phuoc
 ---------------------------------------------------------------------
 4. LEVEL 2 - RUN WITH DOCKER COMPOSE
 ---------------------------------------------------------------------
+  4.1 Configure e-mail (optional, before the first run)
+
+  The app sends a verification e-mail when a user registers. The worker
+  service needs an SMTP account to send it. If you skip this step, the
+  app still runs normally, but verification e-mails are not delivered.
+
+  Open docker-compose.yml, find the "worker" service and replace the
+  three placeholders under "environment" with real values (remove the
+  ${ } characters):
+
+      SMTP_USER: your_email@gmail.com
+      SMTP_PASS: your_app_password
+      MAIL_FROM: Todo App <your_email@gmail.com>
+
+  SMTP_HOST, SMTP_PORT and SMTP_SECURE already default to Gmail
+  (smtp.gmail.com, 587, false). Change them only for another provider.
+
+  Notes:
+    - SMTP_USER   Gmail address used to log in to the SMTP server.
+    - SMTP_PASS   A Gmail "App Password" (16 characters), NOT the normal
+                  Gmail password. Create one in Google Account >
+                  Security > 2-Step Verification > App passwords.
+    - MAIL_FROM   Sender name and address shown in the e-mail. Use the
+                  same address as SMTP_USER.
+    - Do not commit your real e-mail or password to Git.
+
+  4.2 Start the application
+
   Open a terminal in the project folder and run:
 
       docker compose up -d --pull always
@@ -103,6 +131,14 @@ Lecturer: Duong Huu Phuoc
     - worker
     - redis
     - mongo
+
+  Check that the verification e-mail was sent (after registering):
+
+      docker compose logs worker
+
+  Expected line:  [worker] verification e-mail sent to <address>
+
+  4.3 Scale, stop and clean up
 
   Scale the backend with Docker Compose:
 
@@ -285,6 +321,7 @@ Lecturer: Duong Huu Phuoc
 
   - Swarm node status:
       docker node ls
+
 
 =====================================================================
 END OF README
