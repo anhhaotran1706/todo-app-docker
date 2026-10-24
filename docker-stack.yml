@@ -1,0 +1,126 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - todo-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - todo-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  backend:
+    image: ${REGISTRY:-localhost:5000}/todo-backend:${TAG:-latest}
+    networks:
+      - todo-net
+    environment:
+      MONGO_URL: mongodb://mongo:27017/tododb
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret} 
+      APP_URL: ${APP_URL:-http://localhost:8080}
+    deploy:
+      replicas: 3
+      endpoint_mode: vip
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    depends_on:
+      - mongo
+      - redis
+
+  worker:
+    image: ${REGISTRY:-localhost:5000}/todo-backend:${TAG:-latest}
+    command: ["node", "worker.js"]
+    networks:
+      - todo-net
+    environment:
+      MONGO_URL: mongodb://mongo:27017/tododb
+      REDIS_URL: redis://redis:6379
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-unset@example.com}
+      SMTP_PASS: ${SMTP_PASS:-unset}
+      MAIL_FROM: ${MAIL_FROM:-Todo App <unset@example.com>}
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    depends_on:
+      - backend
+      - redis
+
+  frontend:
+    image: ${REGISTRY:-localhost:5000}/todo-frontend:${TAG:-latest}
+    networks:
+      - todo-net
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+
+  gateway:
+    image: ${REGISTRY:-localhost:5000}/todo-gateway:${TAG:-latest}
+    ports:
+      - target: 80
+        published: 8080
+        protocol: tcp
+        mode: ingress
+    networks:
+      - todo-net
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+
+networks:
+  todo-net:
+    driver: overlay
+    attachable: true
+
+volumes:
+  mongo_data:
