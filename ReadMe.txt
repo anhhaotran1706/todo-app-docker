@@ -11,7 +11,7 @@ TEAM MEMBERS
   1. Tran Anh Hao  -  524H0153
   2. Ha Nam Anh    -  524H0140
   3. Le Quang Tan  -  524H0188
-Lecturer: Mai Van Manh
+Lecturer: Duong Huu Phuoc
 
 ---------------------------------------------------------------------
 1. PROJECT LEVELS
