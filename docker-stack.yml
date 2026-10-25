@@ -34,6 +34,20 @@ services:
       restart_policy:
         condition: on-failure
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - target: 8025
+        published: 8025
+        protocol: tcp
+        mode: ingress
+    networks:
+      - todo-net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
   backend:
     image: ${REGISTRY:-localhost:5000}/todo-backend:${TAG:-latest}
     networks:
@@ -70,12 +84,12 @@ services:
     environment:
       MONGO_URL: mongodb://mongo:27017/tododb
       REDIS_URL: redis://redis:6379
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER:-unset@example.com}
-      SMTP_PASS: ${SMTP_PASS:-unset}
-      MAIL_FROM: ${MAIL_FROM:-Todo App <unset@example.com>}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_SECURE: "false"
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      MAIL_FROM: Todo App <no-reply@todo.local>
     deploy:
       replicas: 1
       restart_policy:
@@ -85,6 +99,7 @@ services:
     depends_on:
       - backend
       - redis
+      - mailpit
 
   frontend:
     image: ${REGISTRY:-localhost:5000}/todo-frontend:${TAG:-latest}

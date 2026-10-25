@@ -31,6 +31,7 @@ Lecturer: Duong Huu Phuoc
   - The backend can run multiple replicas.
   - Redis provides an asynchronous event queue for the worker service.
   - MongoDB data is persisted in the named volume "mongo_data".
+  - Mailpit captures development e-mails and provides a web UI on port 8025.
   - Healthchecks are configured for MongoDB and Redis.
 
   LEVEL 3 - DOCKER SWARM
@@ -131,6 +132,7 @@ Lecturer: Duong Huu Phuoc
     - worker
     - redis
     - mongo
+    - mailpit (web UI: http://localhost:8025)
 
   Check that the verification e-mail was sent (after registering):
 
@@ -272,6 +274,7 @@ Lecturer: Duong Huu Phuoc
 7. SERVICES AND PROJECT STRUCTURE
 ---------------------------------------------------------------------
   gateway   Nginx reverse proxy and load balancer; publishes port 8080
+  mailpit   Development SMTP server on port 1025; web UI on port 8025
   frontend  React application built with Vite and served by Nginx
   backend   Node.js/Express REST API
   worker    Node.js consumer for Redis events
@@ -300,12 +303,20 @@ Lecturer: Duong Huu Phuoc
     SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, MAIL_FROM
     REGISTRY, TAG
 
+  In local Compose mode, the worker sends mail to mailpit:1025.
+  Open the captured messages at http://localhost:8025.
+  In Swarm mode, the same web UI is exposed through port 8025.
+
 ---------------------------------------------------------------------
 9. TROUBLESHOOTING
 ---------------------------------------------------------------------
   - Port 8080 is busy:
       Change "8080:80" in docker-compose.yml or the published port in
       docker-stack.yml.
+
+  - Mailpit is unavailable on port 8025:
+      Check `docker compose ps mailpit` or `docker service ps todo_mailpit`.
+      Confirm that port 8025 is not already used by another application.
 
   - Gateway returns 502 after backend recreation:
       docker compose restart gateway

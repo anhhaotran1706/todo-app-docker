@@ -21,6 +21,13 @@ services:
       timeout: 3s
       retries: 10
 
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+    networks: [todo-net]
+
   backend:
     build: ./backend
     image: todo-backend
@@ -46,17 +53,19 @@ services:
     environment:
       MONGO_URL: mongodb://mongo:27017/tododb
       REDIS_URL: redis://redis:6379
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
-      MAIL_FROM: ${MAIL_FROM}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_SECURE: false
+      SMTP_USER:
+      SMTP_PASS:
+      MAIL_FROM: Todo App <no-reply@todo.local>
     depends_on:
       backend:
         condition: service_started
       redis:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     networks: [todo-net]
 
   frontend:
