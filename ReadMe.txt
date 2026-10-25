@@ -1,339 +1,256 @@
-=====================================================================
-DOCKERIZED TODO LIST - Web Programming with NodeJS (502070)
-
-Level 1: Containerized Todo application
-Level 2: Docker Compose + replicated backend + Nginx load balancing
-         + Redis message queue with a separate worker service
-Level 3: Docker Swarm stack + rolling updates + rollback + scaling
-=====================================================================
-
-TEAM MEMBERS
-  1. Tran Anh Hao  -  524H0153
-  2. Ha Nam Anh    -  524H0140
-  3. Le Quang Tan  -  524H0188
-Lecturer: Duong Huu Phuoc
-
----------------------------------------------------------------------
-1. PROJECT LEVELS
----------------------------------------------------------------------
-  LEVEL 1 - CONTAINERIZATION
-  - The backend runs in a Node.js container.
-  - The frontend is built with React/Vite and served by Nginx.
-  - MongoDB and Redis run as separate containers.
-  - Dockerfiles define the runtime images and dependencies.
-  - The application can run without installing Node.js, MongoDB or
-    Redis directly on the host machine.
-
-  LEVEL 2 - DOCKER COMPOSE
-  - docker-compose.yml defines the complete multi-container system.
-  - Services include gateway, frontend, backend, worker, Redis and MongoDB.
-  - Nginx acts as a reverse proxy and load balancer.
-  - The backend can run multiple replicas.
-  - Redis provides an asynchronous event queue for the worker service.
-  - MongoDB data is persisted in the named volume "mongo_data".
-  - Mailpit captures development e-mails and provides a web UI on port 8025.
-  - Healthchecks are configured for MongoDB and Redis.
-
-  LEVEL 3 - DOCKER SWARM
-  - docker-stack.yml defines the production-style Swarm deployment.
-  - The stack uses an overlay network named "todo-net".
-  - Backend runs with 3 replicas.
-  - Frontend and gateway run with 2 replicas each.
-  - Rolling updates use start-first deployment order.
-  - Failed updates can automatically roll back.
-  - Services have restart policies for failure recovery.
-  - Docker Swarm provides service scaling and internal load balancing.
-
----------------------------------------------------------------------
-2. REQUIREMENTS
----------------------------------------------------------------------
-  LEVEL 1 AND LEVEL 2
-  - Docker Desktop or Docker Engine with Docker Compose v2
-  - Internet connection on first run
-  - Free port 8080 on the host machine
+# Dockerized Todo List
 
-  LEVEL 3
-  - Docker Engine with Swarm mode enabled
-  - One manager node and at least one worker node for multi-node testing
-  - A container registry accessible by all Swarm nodes
-  - Free port 8080 on the Swarm ingress node
+Ứng dụng Todo List full-stack cho môn Web Programming with NodeJS (502070).
 
-  No Node.js, MongoDB or Redis installation is needed on the host.
+- **Level 1:** Dockerfile và container hóa từng thành phần.
+- **Level 2:** Docker Compose, Nginx gateway, backend replicas, Redis worker và Mailpit.
+- **Level 3:** Docker Swarm, scaling, rolling update và rollback.
 
----------------------------------------------------------------------
-3. LEVEL 1 - BUILD AND RUN THE CONTAINERS
----------------------------------------------------------------------
-  Build the backend image:
+## Thành viên
 
-      docker build -t todo-backend:local ./backend
+1. Tran Anh Hao - 524H0153
+2. Ha Nam Anh - 524H0140
+3. Le Quang Tan - 524H0188
 
-  Build the frontend image:
+Lecturer: Duong Van Manh
 
-      docker build -t todo-frontend:local ./frontend
+## Yêu cầu
 
-  The gateway image can be built separately when needed:
+- Docker Desktop hoặc Docker Engine.
+- Docker Compose v2.
+- Port `8080` và `8025` chưa được sử dụng.
+- Level 3 cần Docker Swarm; nhiều node cần registry dùng chung.
 
-      docker build -t todo-gateway:local ./gateway
+Không cần cài Node.js, MongoDB hoặc Redis trên máy host.
 
-  Level 1 focuses on packaging the application components into Docker
-  images. The complete multi-service startup is described in Level 2.
+## Cấu trúc project
 
----------------------------------------------------------------------
-4. LEVEL 2 - RUN WITH DOCKER COMPOSE
----------------------------------------------------------------------
-  4.1 Configure e-mail (optional, before the first run)
+```text
+.
+├── backend/
+│   ├── Dockerfile
+│   ├── server.js       # Express REST API
+│   ├── worker.js       # Redis worker gửi email và tạo notification
+│   ├── auth.js         # Đăng ký, đăng nhập, verify email
+│   ├── models.js       # User, Todo, Notification
+│   └── mailer.js       # SMTP client kết nối Mailpit
+├── frontend/
+│   ├── Dockerfile      # Multi-stage React/Vite + Nginx
+│   └── src/            # Giao diện Todo List
+├── gateway/
+│   ├── Dockerfile
+│   └── nginx.conf      # Reverse proxy và load balancing
+├── docker-compose.yml  # Level 2
+├── docker-stack.yml    # Level 3
+└── report/             # Sơ đồ kiến trúc và Docker
+```
 
-  The app sends a verification e-mail when a user registers. The worker
-  service needs an SMTP account to send it. If you skip this step, the
-  app still runs normally, but verification e-mails are not delivered.
+## Level 1 - Build Docker images
 
-  Open docker-compose.yml, find the "worker" service and replace the
-  three placeholders under "environment" with real values (remove the
-  ${ } characters):
+Level 1 kiểm tra khả năng đóng gói backend, frontend và gateway thành Docker images.
 
-      SMTP_USER: your_email@gmail.com
-      SMTP_PASS: your_app_password
-      MAIL_FROM: Todo App <your_email@gmail.com>
+```bash
+docker build -t todo-backend:local ./backend
+docker build -t todo-frontend:local ./frontend
+docker build -t todo-gateway:local ./gateway
+docker images | grep todo
+```
 
-  SMTP_HOST, SMTP_PORT and SMTP_SECURE already default to Gmail
-  (smtp.gmail.com, 587, false). Change them only for another provider.
+Kiểm tra thành công khi cả ba images được build không lỗi.
 
-  Notes:
-    - SMTP_USER   Gmail address used to log in to the SMTP server.
-    - SMTP_PASS   A Gmail "App Password" (16 characters), NOT the normal
-                  Gmail password. Create one in Google Account >
-                  Security > 2-Step Verification > App passwords.
-    - MAIL_FROM   Sender name and address shown in the e-mail. Use the
-                  same address as SMTP_USER.
-    - Do not commit your real e-mail or password to Git.
+## Level 2 - Chạy bằng Docker Compose
 
-  4.2 Start the application
+### Khởi động
 
-  Open a terminal in the project folder and run:
+```bash
+docker compose up -d --pull always
+docker compose ps
+```
 
-      docker compose up -d --pull always
+Mở ứng dụng:
 
-  The first run builds the local backend and frontend images. The command
-  may take a few minutes while Docker pulls base images and installs npm
-  packages.
+- Todo List: http://localhost:8080
+- Mailpit: http://localhost:8025
 
-  Open the application:
+Mailpit dùng SMTP nội bộ:
 
-      http://localhost:8080
+```text
+SMTP_HOST=mailpit
+SMTP_PORT=1025
+SMTP_SECURE=false
+```
 
-  Check the service status:
+Không cần Gmail, SMTP account hoặc App Password. Email verify được giữ trong Mailpit và không gửi ra Internet.
 
-      docker compose ps
+### Test Level 2
 
-  Expected services:
-    - gateway
-    - frontend
-    - backend
-    - worker
-    - redis
-    - mongo
-    - mailpit (web UI: http://localhost:8025)
+1. Đăng ký tài khoản mới.
+2. Mở Mailpit tại `http://localhost:8025`.
+3. Mở email verify và bấm link.
+4. Đăng nhập và kiểm tra banner verify đã biến mất.
+5. Thêm, sửa, hoàn thành và xóa Todo.
+6. Thêm một Todo, chờ notification được worker xử lý.
 
-  Check that the verification e-mail was sent (after registering):
+Kiểm tra service và log:
 
-      docker compose logs worker
+```bash
+docker compose ps
+docker compose logs -f worker
+```
 
-  Expected line:  [worker] verification e-mail sent to <address>
+Scale backend:
 
-  4.3 Scale, stop and clean up
+```bash
+docker compose up -d --scale backend=5
+```
 
-  Scale the backend with Docker Compose:
+Kiểm tra load balancing:
 
-      docker compose up -d --scale backend=5
+```bash
+curl -si http://localhost:8080/api/health | grep -i X-Served-By
+```
 
-  Stop the Compose deployment:
+Chạy nhiều lần để quan sát backend replica phục vụ request.
 
-      docker compose down
+Dừng và xóa:
 
-  Stop the deployment and remove MongoDB data:
+```bash
+docker compose down
+docker compose down -v
+```
 
-      docker compose down -v
+`down -v` sẽ xóa volume MongoDB và dữ liệu Todo.
 
----------------------------------------------------------------------
-5. LEVEL 3 - DEPLOY WITH DOCKER SWARM
----------------------------------------------------------------------
-  Level 3 uses docker-stack.yml. Swarm mode must be enabled before
-  deploying the stack.
+## Level 3 - Chạy bằng Docker Swarm
 
-  5.1 Initialize a single-node Swarm
+### Khởi tạo Swarm
 
-      docker swarm init
+```bash
+docker swarm init
+```
 
-  If Swarm mode is already enabled, skip this command.
+### Build images
 
-  5.2 Build the images used by the stack
+Với một node local, build các image theo tên stack sử dụng:
 
-      docker build -t todo-backend:latest ./backend
-      docker build -t todo-frontend:latest ./frontend
-      docker build -t todo-gateway:latest ./gateway
+```bash
+docker build -t localhost:5000/todo-backend:latest ./backend
+docker build -t localhost:5000/todo-frontend:latest ./frontend
+docker build -t localhost:5000/todo-gateway:latest ./gateway
+```
 
-  For a multi-node Swarm, push the images to a registry accessible by
-  every node. Set REGISTRY to that registry address, then push:
+Với nhiều node, tag và push cả ba images lên registry dùng chung:
 
-      docker tag todo-backend:latest REGISTRY_HOST/todo-backend:latest
-      docker tag todo-frontend:latest REGISTRY_HOST/todo-frontend:latest
-      docker tag todo-gateway:latest REGISTRY_HOST/todo-gateway:latest
+```bash
+docker tag localhost:5000/todo-backend:latest REGISTRY_HOST/todo-backend:latest
+docker tag localhost:5000/todo-frontend:latest REGISTRY_HOST/todo-frontend:latest
+docker tag localhost:5000/todo-gateway:latest REGISTRY_HOST/todo-gateway:latest
 
-      docker push REGISTRY_HOST/todo-backend:latest
-      docker push REGISTRY_HOST/todo-frontend:latest
-      docker push REGISTRY_HOST/todo-gateway:latest
+docker push REGISTRY_HOST/todo-backend:latest
+docker push REGISTRY_HOST/todo-frontend:latest
+docker push REGISTRY_HOST/todo-gateway:latest
+```
 
-  5.3 Deploy the stack
+### Deploy stack
 
-  For a local single-node registry or a configured registry:
+```bash
+export REGISTRY=REGISTRY_HOST
+export TAG=latest
+docker stack deploy -c docker-stack.yml todo
+```
 
-      export REGISTRY=REGISTRY_HOST
-      export TAG=latest
-      docker stack deploy -c docker-stack.yml todo
+Nếu dùng một node và image nằm local, đặt `REGISTRY=localhost:5000` hoặc dùng giá trị mặc định trong `docker-stack.yml`.
 
-  If the images are available locally on a single Swarm node, use the
-  default registry value configured in docker-stack.yml.
+Kiểm tra:
 
-  5.4 Inspect the deployment
+```bash
+docker stack services todo
+docker stack ps todo
+docker service ls
+```
 
-      docker stack services todo
-      docker stack ps todo
-      docker service ls
+Mở ứng dụng:
 
-  Open the application at:
+- Todo List: http://localhost:8080
+- Mailpit: http://localhost:8025
 
-      http://localhost:8080
+### Test Level 3
 
-  5.5 Scale services
+Kiểm tra số replica mặc định:
 
-      docker service scale todo_backend=5
-      docker service scale todo_frontend=3
-      docker service scale todo_gateway=3
+```bash
+docker service ls
+```
 
-  5.6 Test rolling update and rollback
+Mặc định:
 
-      docker service update --image REGISTRY_HOST/todo-backend:NEW_TAG todo_backend
-      docker service ps todo_backend
+- Backend: 3 replicas.
+- Frontend: 2 replicas.
+- Gateway: 2 replicas.
+- Worker, Redis, MongoDB và Mailpit: 1 replica.
 
-  Roll back the latest backend update if required:
+Scale service:
 
-      docker service rollback todo_backend
+```bash
+docker service scale todo_backend=5
+docker service scale todo_frontend=3
+docker service scale todo_gateway=3
+```
 
-  5.7 Remove the stack
+Kiểm tra rolling update:
 
-      docker stack rm todo
+```bash
+docker service update --image REGISTRY_HOST/todo-backend:NEW_TAG todo_backend
+docker service ps todo_backend
+```
 
-  Leave Swarm mode:
+Rollback:
 
-      docker swarm leave --force
+```bash
+docker service rollback todo_backend
+```
 
----------------------------------------------------------------------
-6. HOW TO TEST LEVEL 2 AND LEVEL 3
----------------------------------------------------------------------
-  a) Basic CRUD
-     Add, edit, complete and delete tasks in the browser.
-     MongoDB data persists through container restarts.
+Kiểm tra worker và Mailpit:
 
-  b) Load balancing
-     The application exposes the backend hostname through the
-     X-Served-By response header:
+```bash
+docker service logs -f todo_worker
+docker service ps todo_mailpit
+```
 
-         curl -si http://localhost:8080/api/health | grep -i X-Served-By
+Test resilience bằng cách xóa một task backend:
 
-     Run the command multiple times. Requests should be handled by
-     different backend replicas.
+```bash
+docker service ps todo_backend
+docker rm -f <backend-container-id>
+docker service ps todo_backend
+```
 
-  c) Asynchronous messaging
-     Add a task and wait approximately two seconds for its notification.
-     Inspect the worker logs:
+Swarm sẽ tạo task thay thế theo restart policy.
 
-         docker compose logs -f worker
+Xóa stack:
 
-     In Swarm mode, use:
+```bash
+docker stack rm todo
+docker swarm leave --force
+```
 
-         docker service logs -f todo_worker
+## Services
 
-     Stop the worker, add tasks, then start or scale it again. The API
-     remains available while events wait in the Redis queue.
+| Service | Vai trò | Cổng |
+|---|---|---:|
+| `gateway` | Nginx reverse proxy và load balancer | `8080` |
+| `frontend` | React/Vite được serve bằng Nginx | nội bộ `80` |
+| `backend` | Express REST API | nội bộ `3000` |
+| `worker` | Đọc event từ Redis và gửi email | nội bộ |
+| `redis` | Message queue | nội bộ `6379` |
+| `mongo` | Database và persistent volume | nội bộ `27017` |
+| `mailpit` | SMTP giả lập và giao diện email | SMTP `1025`, UI `8025` |
 
-  d) Resilience
-     In Compose mode, stop one backend container:
+## Lưu ý
 
-         docker ps --filter name=backend
-         docker stop <one-backend-container-id>
-
-     In Swarm mode, remove one backend task and inspect recovery:
-
-         docker service ps todo_backend
-         docker service scale todo_backend=3
-
-     Remaining replicas continue serving requests, and Swarm recreates
-     tasks according to the service restart policy.
-
----------------------------------------------------------------------
-7. SERVICES AND PROJECT STRUCTURE
----------------------------------------------------------------------
-  gateway   Nginx reverse proxy and load balancer; publishes port 8080
-  mailpit   Development SMTP server on port 1025; web UI on port 8025
-  frontend  React application built with Vite and served by Nginx
-  backend   Node.js/Express REST API
-  worker    Node.js consumer for Redis events
-  redis     Redis message broker and list-based queue
-  mongo     MongoDB database with persistent storage
-
-  docker-compose.yml     Level 2 local multi-container deployment
-  docker-stack.yml       Level 3 Docker Swarm deployment
-  backend/               Express API, worker, models and Dockerfile
-  frontend/              React/Vite source and multi-stage Dockerfile
-  gateway/               Nginx configuration and Dockerfile
-  report/                Architecture and Docker diagrams
-
----------------------------------------------------------------------
-8. CONFIGURATION AND SECURITY
----------------------------------------------------------------------
-  Compose automatically reads values from a local .env file when present.
-  The Compose file also uses environment variables for SMTP settings.
-
-  Do not commit .env files or bake passwords into Docker images.
-  Replace the demo JWT_SECRET before using the application outside a
-  classroom or local development environment.
-
-  Important variables include:
-    MONGO_URL, REDIS_URL, JWT_SECRET, APP_URL
-    SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, MAIL_FROM
-    REGISTRY, TAG
-
-  In local Compose mode, the worker sends mail to mailpit:1025.
-  Open the captured messages at http://localhost:8025.
-  In Swarm mode, the same web UI is exposed through port 8025.
-
----------------------------------------------------------------------
-9. TROUBLESHOOTING
----------------------------------------------------------------------
-  - Port 8080 is busy:
-      Change "8080:80" in docker-compose.yml or the published port in
-      docker-stack.yml.
-
-  - Mailpit is unavailable on port 8025:
-      Check `docker compose ps mailpit` or `docker service ps todo_mailpit`.
-      Confirm that port 8025 is not already used by another application.
-
-  - Gateway returns 502 after backend recreation:
-      docker compose restart gateway
-
-  - Compose service status:
-      docker compose ps
-      docker compose logs <service-name>
-
-  - Swarm service status:
-      docker stack services todo
-      docker service ps todo_backend
-      docker service logs todo_backend
-
-  - Swarm node status:
-      docker node ls
-
-
-=====================================================================
-END OF README
-=====================================================================
+- Chỉ dùng một trong hai cách chạy tại một thời điểm: Compose hoặc Swarm.
+- Nếu chạy cả hai, các service có thể dùng khác database, Redis, worker và network.
+- `docker-compose.yml` dùng bridge network; `docker-stack.yml` dùng overlay network.
+- Mailpit chỉ dùng cho development/testing, không gửi email thật.
+- Đổi `JWT_SECRET` trước khi triển khai ngoài môi trường học tập.
+- Không commit `.env`, password hoặc secret vào Git.
