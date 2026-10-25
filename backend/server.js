@@ -2,7 +2,7 @@ const os = require('os');
 const express = require('express');
 const Redis = require('ioredis');
 const { connectWithRetry } = require('./db');
-const { Todo, Notification } = require('./models');
+const { User, Todo, Notification } = require('./models');
 const { createAuthRouter, requireAuth, wrap } = require('./auth');
 
 const PORT = process.env.PORT || 3000;
@@ -23,6 +23,11 @@ async function publish(type, payload) {
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', instance: os.hostname() }));
 app.use('/api/auth', createAuthRouter(publish));
+app.get('/api/auth/me', requireAuth, wrap(async (req, res) => {
+  const user = await User.findById(req.user.sub).select('email verified');
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ email: user.email, verified: user.verified });
+}));
 app.use('/api/todos', requireAuth);
 app.use('/api/notifications', requireAuth);
 

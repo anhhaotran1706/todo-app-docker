@@ -15,6 +15,8 @@ export default function App() {
   const [email, setEmail] = useState(localStorage.getItem('email') || '');
   const [verified, setVerified] = useState(localStorage.getItem('verified') === 'true');
   const [verificationMessage, setVerificationMessage] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState('');
 
   const logout = useCallback(() => {
     localStorage.removeItem('token');
@@ -53,6 +55,11 @@ export default function App() {
 
   const load = useCallback(async () => {
     try {
+      const account = await request('/auth/me');
+      setEmail(account.email);
+      setVerified(account.verified);
+      localStorage.setItem('email', account.email);
+      localStorage.setItem('verified', String(account.verified));
       setTodos(await request('/todos'));
       setNotifications(await request('/notifications'));
       setError('');
@@ -103,9 +110,26 @@ export default function App() {
     }
   };
 
-  const rename = (t) => {
-    const next = window.prompt('Edit task', t.title);
-    if (next && next.trim()) act(() => request(`/todos/${t._id}`, { method: 'PUT', body: JSON.stringify({ title: next }) }));
+  const startEdit = (t) => {
+    setEditingId(t._id);
+    setEditingTitle(t.title);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingTitle('');
+  };
+
+  const saveEdit = (t) => {
+    const next = editingTitle.trim();
+    if (!next) return;
+    act(async () => {
+      await request(`/todos/${t._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title: next }),
+      });
+      cancelEdit();
+    });
   };
 
   if (!token) return <Auth onLogin={onLogin} />;
@@ -148,9 +172,27 @@ export default function App() {
         {visible.map((t) => (
           <li key={t._id} className={t.done ? 'done' : ''}>
             <input type="checkbox" checked={t.done} onChange={() => toggle(t)} />
-            <span className="title">{t.title}</span>
-            {t.dueDate && <span className="due">due {new Date(t.dueDate).toLocaleDateString()}</span>}
-            <button onClick={() => rename(t)}>Edit</button>
+            {editingId === t._id ? (
+              <>
+                <input
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveEdit(t);
+                    if (e.key === 'Escape') cancelEdit();
+                  }}
+                  autoFocus
+                />
+                <button onClick={() => saveEdit(t)}>Save</button>
+                <button onClick={cancelEdit}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <span className="title">{t.title}</span>
+                {t.dueDate && <span className="due">due {new Date(t.dueDate).toLocaleDateString()}</span>}
+                <button onClick={() => startEdit(t)}>Edit</button>
+              </>
+            )}
             <button className="danger" onClick={() => remove(t)}>Delete</button>
           </li>
         ))}
