@@ -12,7 +12,7 @@
 2. Ha Nam Anh - 524H0140
 3. Le Quang Tan - 524H0188
 
-Lecturer: Duong Van Manh
+Lecturer: Duong Huu Phuoc
 
 ## Yêu cầu
 
@@ -73,14 +73,6 @@ Mở ứng dụng:
 - Mailpit: http://localhost:8025
 
 Mailpit dùng SMTP nội bộ:
-
-```text
-SMTP_HOST=mailpit
-SMTP_PORT=1025
-SMTP_SECURE=false
-```
-
-Không cần Gmail, SMTP account hoặc App Password. Email verify được giữ trong Mailpit và không gửi ra Internet.
 
 ### Test Level 2
 
