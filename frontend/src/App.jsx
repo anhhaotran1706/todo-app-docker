@@ -29,6 +29,16 @@ export default function App() {
     window.history.replaceState({}, '', '/');
   };
 
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get('verified');
+    if (result === '1') {
+      localStorage.setItem('verified', 'true');
+      setVerified(true);
+      setVerificationMessage('E-mail verified successfully.');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   // Wrapper that records which backend replica answered each request.
   const request = useCallback(async (path, options) => {
     const res = await fetch(API + path, {
